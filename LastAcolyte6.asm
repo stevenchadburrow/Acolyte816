@@ -74,7 +74,7 @@
 :copy_sdcard_high
 .DAT $00 ; high address, will be modified
 :copy_sdcard_bank
-.DAT $04 ; bank address at $000400, will be modified 
+.DAT $02 ; bank address at $020000, will be modified 
 
 	INC copy_sdcard_low	; increment low address
 	BNE copy_sdcard_loop	; if not zero, loop
@@ -83,10 +83,10 @@
 	INC copy_sdcard_bank	; increment bank address when high address is zero
 	LDA copy_sdcard_bank
 	CMP #$08
-	BEQ copy_sdcard_loop	; keep going until $080000, which would make 256KB
+	BEQ copy_sdcard_loop	; keep going until $040000, which would make 128KB
 	CLC
 	XCE			; exit emulation mode, enter native mode
-	JMP $040000	 	; jump to beginning of the newly loaded code!
+	JMP $03FF00	 	; jump to end of the newly loaded code!
 
 
 ; mini monitor in case SD card is not present

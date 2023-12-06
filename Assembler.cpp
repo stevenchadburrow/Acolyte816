@@ -1378,7 +1378,7 @@ int main(const int argc, const char **argv)
 		star_location[i] = 0;
 	}
 
-	if (argc < 3)
+	if (argc < 6)
 	{
 		printf("Arguments: <input.asm> <output.bin> <output.hex> <output_start_bytes> <output_end_bytes>\n");
 		
@@ -1390,6 +1390,8 @@ int main(const int argc, const char **argv)
 
 	for (int i=0; i<3; i++) // number of passes
 	{
+		printf("Pass %d\n", i+1);
+
 		input = NULL;
 
 		input = fopen(argv[1], "rt");
@@ -1479,6 +1481,7 @@ int main(const int argc, const char **argv)
 
 	printf("Complete\n\n");
 	
+/*
 	// optional code below, comment out if need be
 	char command[256];
 	
@@ -1487,6 +1490,7 @@ int main(const int argc, const char **argv)
 	sprintf(command, "hexdump -C %s", argv[2]);
 
 	system(command);
+*/
 
 	return 1;
 }

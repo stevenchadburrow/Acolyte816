@@ -140,14 +140,16 @@ assign shift_clock_via = (~nmi && interrupt) ? shift : 1'bz;
 initial begin
 	boot <= 1'b1; // begin boot
 	hold <= 1'b1; // hold interrupts
+	
+	video_scroll[7:0] <= 8'b00000000;
 end
 
 always @(posedge shift_clock_via) begin
 	
 	if (~interrupt) begin // only listen to shift clock on v-sync
-		video_scroll[7:1] <= video_scroll[6:0]; // shift data over one
-	
-		video_scroll[0] <= shift_data; // shift in new data
+		video_scroll[7:1] <= video_scroll[6:0];
+
+		video_scroll[0] <= shift_data;
 	end
 end
 
@@ -186,6 +188,15 @@ always @(negedge master_clock) begin
 		
 		if (video_addr[8:0] == 9'b101001000) begin // 328 pixels
 			hsync <= 1'b0; // turn on h-sync
+			
+			if (video_addr[18:9] == 10'b1000001101) begin // 525 lines
+				video_addr[18:9] <= 10'b0000000000; // 0 lines
+				
+				vblank <= 1'b1; // turn on v-blank
+			end
+			else begin
+				video_addr[18:9] <= video_addr[18:9] + 1; // increment lines during h-sync
+			end
 		end
 				
 		if (video_addr[8:0] == 9'b101111000) begin // 376 pixels
@@ -213,15 +224,6 @@ always @(negedge master_clock) begin
 				vsync <= 1'b1; // turn off v-sync
 				
 				interrupt <= 1'b1; // release /NMI, pulled high
-			end
-	
-			if (video_addr[18:9] == 10'b1000001101) begin // 525 lines
-				video_addr[18:9] <= 10'b0000000000; // 0 lines
-				
-				vblank <= 1'b1; // turn on v-blank
-			end
-			else begin
-				video_addr[18:9] <= video_addr[18:9] + 1; // increment lines
 			end
 		end
 		else begin
