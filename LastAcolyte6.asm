@@ -6,7 +6,7 @@
 
 ; ./Assembler.o LastAcolyte6.asm LastAcolyte6.bin LastAcolyte6.hex 0 65536 ; ./AcolyteSimulator.o LastAcolyte6.bin
 
-; ./Assembler.o LastAcolyte6.asm LastAcolyte6.bin LastAcolyte6.hex 65024 65536
+; ./Assembler.o LastAcolyte6.asm LastAcolyte6.bin LastAcolyte6.hex 65024 65536 ; hexdump -C LastAcolyte6.bin
 
 
 ; VIA location
@@ -42,52 +42,27 @@
 .ORG $FE00
 .LOC start of code
 :reset				; upon reset...
-	WAI			; bring RDY low, wait for PIC to interrupt and bring /NMI low, not coming back
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP			; 16 NOP codes, will be replaced later by PIC
 
+:jump
+	BRA monitor
 :dummy				; dummy used for native mode, can replace later
 	RTI
-
-:load				; used in emulation mode, copy code in for bootloader
-	LDA #$04
-	STA via_ier		; set up /IRQ interrupts for SR (but don't use CLI!)
-; first access of non-zero bank, at this point /NMI interrupts on V-SYNC, but not while /NMI is already low
-	LDA #$1C
-	STA via_acr		; set up SR in mode 111
-	LDA #$00		; command for loading 256KB of data
-	STA via_sr		; store accumulator in SR
-	WAI			; wait for PIC
-
-	LDA #$0C
-	STA via_acr		; set up SR in mode 011
-	WAI			; wait for PIC
-	LDA via_sr		; get return value from SR
-	BEQ monitor		; if $00, SDcard error, go to monitor
-
-:copy_sdcard_loop
-	WAI			; wait for PIC
-	LDA via_sr		; get SR data
-
-; store data from SR to RAM
-.DAT $8F ; STAal
-:copy_sdcard_low
-.DAT $00 ; low address, will be modified
-:copy_sdcard_high
-.DAT $00 ; high address, will be modified
-:copy_sdcard_bank
-.DAT $02 ; bank address at $020000, will be modified 
-
-	INC copy_sdcard_low	; increment low address
-	BNE copy_sdcard_loop	; if not zero, loop
-	INC copy_sdcard_high	; increment high address
-	BNE copy_sdcard_loop	; if not zero, loop
-	INC copy_sdcard_bank	; increment bank address when high address is zero
-	LDA copy_sdcard_bank
-	CMP #$08
-	BEQ copy_sdcard_loop	; keep going until $040000, which would make 128KB
-	CLC
-	XCE			; exit emulation mode, enter native mode
-	JMP $03FF00	 	; jump to end of the newly loaded code!
-
 
 ; mini monitor in case SD card is not present
 ; only allows displays zero page
@@ -322,12 +297,16 @@
 ; IRQ-ISR for keyboard input
 :key
 	PHA
-	LDA via_pa
-	AND #$80			; read PA7
+	LDA #$FF
+	STA via_ifr			; clear interrupts
+	LDA via_pb
+	AND #$20			; read PB5
+	ASL
+	ASL				; shift into bit 7
 	CLC	
 	ROR =key_data			; shift key_code
 	CLC
-	ADC =key_data			; add the PA7 bit into key_code
+	ADC =key_data			; add the bit 7 into key_code
 	STA =key_data
 	INC =key_counter		; increment key_counter
 	LDA =key_counter
@@ -370,10 +349,53 @@
 .DAT dummy	; COP (emulation)
 .DAT $0000	; reserved
 .DAT dummy	; ABORTB (emulation)
-.DAT load 	; NMIB (emulation)
+.DAT dummy 	; NMIB (emulation)
 .DAT reset	; RESETB (emulation)
 .DAT key	; IRQB/BRK (emulation)
 
+
+
+;:load				; used in emulation mode, copy code in for bootloader
+;	LDA #$04
+;	STA via_ier		; set up /IRQ interrupts for SR (but don't use CLI!)
+;; first access of non-zero bank, at this point /NMI interrupts on V-SYNC, but not while /NMI is already low
+;	LDA #$1C
+;	STA via_acr		; set up SR in mode 111
+;	LDA #$00		; command for loading 256KB of data
+;	STA via_sr		; store accumulator in SR
+;	WAI			; wait for PIC
+;
+;	LDA #$0C
+;	STA via_acr		; set up SR in mode 011
+;	WAI			; wait for PIC
+;	LDA via_sr		; get return value from SR
+;	BEQ monitor		; if $00, SDcard error, go to monitor
+;
+;:copy_sdcard_loop
+;	WAI			; wait for PIC
+;	LDA via_sr		; get SR data
+;
+;; store data from SR to RAM
+;.DAT $8F ; STAal
+;:copy_sdcard_low
+;.DAT $00 ; low address, will be modified
+;:copy_sdcard_high
+;.DAT $00 ; high address, will be modified
+;:copy_sdcard_bank
+;.DAT $02 ; bank address at $020000, will be modified 
+;
+;	INC copy_sdcard_low	; increment low address
+;	BNE copy_sdcard_loop	; if not zero, loop
+;	INC copy_sdcard_high	; increment high address
+;	BNE copy_sdcard_loop	; if not zero, loop
+;	INC copy_sdcard_bank	; increment bank address when high address is zero
+;	LDA copy_sdcard_bank
+;	CMP #$08
+;	BEQ copy_sdcard_loop	; keep going until $040000, which would make 128KB
+;	CLC
+;	XCE			; exit emulation mode, enter native mode
+;	JMP $03FF00	 	; jump to end of the newly loaded code!
+;
 
 
 
