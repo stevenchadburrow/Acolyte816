@@ -77,6 +77,7 @@ reg latch_ram_a;
 reg latch_ram_b;
 reg [2:0] select; // bank values A16-A18 during phi2 low
 reg interrupt; // periodic interrupt using v-sync
+reg prev; // previous value on shift_clock
 
 
 // during boot the PIC controls phi2, otherwise it's half the 25.175 MHz
@@ -129,18 +130,19 @@ assign visible = (~boot) ? 1'b0 :
 // ground if v-sync (and PIC not active)
 assign nmi = (~interrupt) ? 1'b0 : 1'bz;
 
-initial begin
-	video_scroll[7:0] <= 8'b00000000; // zero scroll
-end
-
-always @(posedge shift_clock) begin
-	
-	video_scroll[7:1] <= video_scroll[6:0];
-	video_scroll[0] <= shift_data;
-end
-
 always @(negedge master_clock) begin
 	
+	if (~boot) begin
+		video_scroll[7:0] <= 8'b00000000; // zero scroll
+	end
+
+	if (shift_clock && ~prev) begin
+		video_scroll[7:1] <= video_scroll[6:0];
+		video_scroll[0] <= shift_data;
+	end
+
+	prev <= shift_clock;
+
 	if (~half) begin // if rising phi2...
 		
 		latch_via <= ~zero && ~bank[3] && ~bank[2] && ~bank[1] && bank[0]; // VIA located at $010000
