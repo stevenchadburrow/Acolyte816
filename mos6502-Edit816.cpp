@@ -6,7 +6,7 @@
 // Description : A MOS 6502 CPU emulator written in C++
 //============================================================================
 
-// This has been altered by Aguamander (Clyde Schiffer) and by Steven Chad Burrow
+// This has been altered by Agumander (Clyde Shaffer) and by Steven Chad Burrow
 
 #include "mos6502-Edit816.h"
 
