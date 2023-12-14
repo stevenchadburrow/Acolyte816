@@ -27,6 +27,8 @@ Make sure to run fitter like in command line, it allows you to change -optimize 
 
 cd ~/Xilinx/LastAcolyte6 ; ~/Xilinx/14.7/ISE_DS/ISE/bin/lin64/cpldfit -intstyle ise -p xc9572xl-5-VQ44 -ofmt vhdl -optimize density -htmlrpt -loc on -slew fast -init low -inputs 54 -pterms 25 -unused float -power std -terminate keeper Verilog4.ngd ; ~/Xilinx/14.7/ISE_DS/ISE/bin/lin64/hprep6 -s IEEE1149 -n Verilog4 -i Verilog4
 
+Use 'xc3sprog' to program the .jed file into the CPLD
+
 */
 
 // This is for W65C816 at 12.5 MHz with 1 MB of RAM
