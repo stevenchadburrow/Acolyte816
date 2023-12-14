@@ -8,6 +8,8 @@ This is a ROM-less design, having 512 bytes of bootloader code in the PIC16F886 
 
 The Simulator is powered by gianlucag's 6502 emulator library, with Agumander's W65C02 edits.  The LICENSE.txt pertains to the "mos6502-Edit816.h" and "mos6502-Edit816.cpp" files only.
 
+A picture of what the board will look like after getting it printed and soldered.
+
 <img src="Acolyte816-Routed.png">
 
 Demo showing 64-colors, text display, and keyboard input.
