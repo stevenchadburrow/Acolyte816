@@ -4,8 +4,6 @@
 
 ; g++ -o AcolyteSimulator.o AcolyteSimulator.cpp -lglfw -lGL -lGLU ; g++ -o AcolyteAssembler.o AcolyteAssembler.cpp
 
-; ./AcolyteAssembler.o LastAcolyte6-Bootloader.asm LastAcolyte6-Bootloader.bin LastAcolyte6-Bootloader.hex 0 65536 ; ./AcolyteSimulator.o LastAcolyte6-Bootloader.bin
-
 ; ./AcolyteAssembler.o LastAcolyte6-Bootloader.asm LastAcolyte6-Bootloader.bin LastAcolyte6-Bootloader.hex 65024 65536 ; hexdump -C LastAcolyte6-Bootloader.bin
 
 ; You can run this in the simulator (given the hex was preloaded) by doing this
@@ -63,7 +61,7 @@
 
 :jump
 	BRA monitor
-:dummy				; dummy used for native mode, can replace later
+:dummy				; dummy for unused interrupts, can replace later
 	RTI
 
 ; mini monitor in case SD card is not present
@@ -81,6 +79,27 @@
 	STA via_pcr		; set up CA1 falling edge interrupts
 	STA via_ier		; set up /IRQ interrupts for CA1
 	CLI			; accept /IRQ interupts	
+
+; clears the screen
+:monitor_clear
+	LDA #$00
+*
+	JSR hex_pixel_store
+	INC hex_pixel_low
+	BNE -
+	LDX hex_pixel_bank
+	CPX #$03
+	BNE +
+	LDX hex_pixel_high
+	CPX #$E0
+	BNE +
+	DEC hex_pixel_bank
+	BRA monitor_display
+*
+	INC hex_pixel_high
+	BNE --
+	INC hex_pixel_bank
+	BRA --
 
 ; displays the zero page
 :monitor_display
@@ -107,7 +126,7 @@
 	BNE +
 	LDA monitor_location
 	CLC
-	ADC #$20		; increase location by 32
+	ADC #$10		; increase location by 16
 	STA monitor_location
 	BRA monitor_display
 *
@@ -139,15 +158,20 @@
 	BRA monitor_display	; redraw zero page
 
 :monitor_run
-	JSR $0000		; run code from $000000
+	LDA monitor_location
+	STA monitor_jump
+.DAT $20 ; JSRa			; run code from $0000XX
+:monitor_jump
+.DAT $00 ; low addr
+.DAT $00 ; high addr
 	BRA monitor_display	; can return to monitor if using RTS at some point
 
 
 ; Draws all of zero page
 ; Y = starting y-coordinate on screen
 :monitor_page
-	LDY #$02		; location on screen, can change as needed
-	LDX #$00		; should start at zero here though
+	LDY #$00		; location on screen, should start at zero
+	LDX #$00
 
 :monitor_loop			; loop through all of zero page
 .DAT $A5 ; LDAz
@@ -164,7 +188,7 @@
 	JSR hex_byte		; draw the full byte (2 characters)
 	INC monitor_byte	; move to the next byte
 	TXA
-	AND #$3F		; allow 32 bytes per line, thus 8 lines total
+	AND #$0F		; allow 16 bytes per line, thus 16 lines total
 	BNE monitor_loop
 	LDX #$00		; start back at zero horizontally
 	INY			; increment y-coordinate twice
@@ -199,7 +223,8 @@
 	PLA
 	AND #$0F		; no shifting needed for lower nibble
 	JSR hex_char		; draw the character
-	INX			; increment x-coordinate
+	INX			; increment two x-coordinates
+	INX
 	PLA			; get A back before leaving
 	RTS
 
@@ -239,10 +264,7 @@
 	PHA
 	JSR hex_pixel		; send pixel to screen
 	INC hex_pixel_low	; go to next location
-	PLA
-	ASL			; shift over by two slots (two pixels per byte)
-	ASL
-	RTS
+	BRA +
 
 :hex_down			; draws second half of row, and goes down a line
 	PHA
@@ -250,6 +272,7 @@
 	DEC hex_pixel_low
 	INC hex_pixel_high
 	INC hex_pixel_high	; go back one but go down as well
+*
 	PLA
 	ASL			; shift over by two slots (two pixels per byte)
 	ASL
@@ -262,6 +285,7 @@
 .DAT $00
 .DAT $29 ; AND#
 .DAT $C0
+:hex_pixel_store
 .DAT $8F 			; $8F for STAal to use with 65816
 :hex_pixel_low
 .DAT $00
@@ -269,7 +293,7 @@
 .DAT $00
 :hex_pixel_bank
 .DAT $02
-	RTS
+.DAT $60 ; RTS
 
 :hex_data ; bitmap data
 .DAT $EA,$AA,$E0,$00 ; 0
