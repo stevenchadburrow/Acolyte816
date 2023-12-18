@@ -10,7 +10,9 @@ The Simulator is powered by gianlucag's 6502 emulator library, with Agumander's 
 
 A picture of what the board will look like after getting it printed and soldered.
 
-<img style="padding:1px;border:thin solid black;" src="Acolyte816-Routed.png">
+<kbd>
+<img src="Acolyte816-Routed.png">
+</kbd>
 
 Splash showing 64-colors and text display together.
 
