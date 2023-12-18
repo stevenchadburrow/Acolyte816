@@ -10,21 +10,21 @@ The Simulator is powered by gianlucag's 6502 emulator library, with Agumander's 
 
 A picture of what the board will look like after getting it printed and soldered.
 
-<img src="Acolyte816-Routed.png">
+<img border="1" src="Acolyte816-Routed.png">
 
 Splash showing 64-colors and text display together.
 
-<img src="Simulator-Splash.png">
+<img border="1" src="Simulator-Splash.png">
 
 Bootloader monitor, a fallback when SDcard is not present.
 
-<img src="Simulator-Bootloader.png">
+<img border="1" src="Simulator-Bootloader.png">
 
 Scratchpad to test the keyboard functionality.
 
-<img src="Simulator-Scratch.png">
+<img border="1" src="Simulator-Scratch.png">
 
 First game for the system: Tetra!
 
-<img src="Simulator-Tetra.png">
+<img border="1" src="Simulator-Tetra.png">
 
