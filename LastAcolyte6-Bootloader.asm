@@ -32,10 +32,10 @@
 .EQU key_array		$000200
 
 ; location of keyboard variables in RAM
-.EQU key_write		$00FFE0
-.EQU key_read		$00FFE1
-.EQU key_data		$00FFE2
-.EQU key_counter	$00FFE4
+.EQU key_write		$00FFDC
+.EQU key_read		$00FFDD
+.EQU key_data		$00FFDE
+.EQU key_counter	$00FFDF
 
 
 ; code
@@ -360,12 +360,12 @@
 
 .LOC end of code
 
-; still some room here!
+; this left over space contains variables
 
 ; vectors
 .ORG $00FFE0
-.DAT $0000 	; reserved [ used in monitor ]
-.DAT $0000 	; reserved [ used in monitor ]
+.DAT $0000 	; reserved
+.DAT $0000 	; reserved
 .DAT dummy 	; COP (native)
 .DAT dummy	; BRK (native)
 .DAT dummy 	; ABORTB (native)

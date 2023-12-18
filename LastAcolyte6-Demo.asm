@@ -15408,13 +15408,13 @@
 .EQU key_array		$000200
 
 ; location of keyboard variables in RAM
-.EQU key_write		$00FFE0
-.EQU key_read		$00FFE1
-.EQU key_data		$00FFE2
-.EQU key_counter	$00FFE4
+.EQU key_write		$00FFDC
+.EQU key_read		$00FFDD
+.EQU key_data		$00FFDE
+.EQU key_counter	$00FFDF
 
 
-.ORG $03E000 ; start of code
+.ORG $03E000 ; start of scratch code
 
 	CLC
 	XCE			; enter native mode
@@ -15432,14 +15432,73 @@
 
 	CLI			; accept /IRQ interupts, uses bootloader keyboard code
 
+:splash_start
+	STZ printchar_x
+	STZ printchar_y
+	LDX #$00
+*
+	LDA splash_text_a,X
+	JSR printchar
+	INC printchar_x
+	INX
+	CPX #$0C
+	BNE -
+
+	STZ printchar_x
+	INC printchar_y
+	LDX #$00
+*
+	LDA splash_text_b,X
+	JSR printchar
+	INC printchar_x
+	INX
+	CPX #$0C
+	BNE -
+
+:splash_loop
+	LDA key_read		; load latest keyboard code
+	CMP key_write		; compare key_read with key_write
+	BEQ splash_loop		; if they are the same, loop back
+	TAX			; transfer A to X
+	LDA key_read
+	INC
+	STA key_read		; increment key_read to match key_write
+	LDA key_array,X		; load latest keyboard press
+	CMP #$76 		; escape
+	BNE splash_loop		; if not escape, loop back
+
+:scratch_start
+	JSR clearscreen
+
+	STZ printchar_x
+	STZ printchar_y
+	LDX #$00
+*
+	LDA splash_text_c,X
+	JSR printchar
+	INC printchar_x
+	INX
+	CPX #$12
+	BNE -
+
+	STZ printchar_x
+	INC printchar_y
+
 	JMP scratch_cursor	; print the cursor and loop in 'scratch'
+
+:splash_text_a
+.DAT "Acolyte '816"
+:splash_text_b
+.DAT "Press Escape"
+:splash_text_c
+.DAT "Press F1 for Tetra"
 
 ; looks for keyboard inputs
 ; and prints them to the screen
-:scratch
+:scratch_loop
 	LDA key_read		; load latest keyboard code
 	CMP key_write		; compare key_read with key_write
-	BEQ scratch		; if they are the same, loop back
+	BEQ scratch_loop	; if they are the same, loop back
 	TAX			; transfer A to X
 	LDA key_read
 	INC
@@ -15456,10 +15515,12 @@
 	BIT scratch_skip	; test skip without affecting accumulator
 	BPL scratch_next	; if not skipable, keep moving
 	STZ scratch_skip	; else zero out skip bit
-	BRA scratch		; and start back at the top
+	BRA scratch_loop	; and start back at the top
 :scratch_next
 	CMP #$76		; escape
 	BEQ scratch_escape
+	CMP #$05		; F1
+	BEQ scratch_exit
 	CLC
 	ADC scratch_case	; add shift for characters
 	TAX			; transfer A to X
@@ -15471,65 +15532,67 @@
 	BEQ scratch_return
 	CMP #$08 		; backspace
 	BEQ scratch_backspace
-	BRA scratch		; else back to the top
+	BRA scratch_loop	; else back to the top
 :scratch_release
 	LDA #$80
 	STA scratch_skip	; next character is to be skipped
-	BRA scratch		; (unless it's a shift)
+	BRA scratch_loop	; (unless it's a shift)
 :scratch_extended
-	BRA scratch		; ignore extended signals, print character normal
+	BRA scratch_loop	; ignore extended signals, print character normal
 :scratch_shift
 	LDA scratch_skip
 	EOR #$80
 	STA scratch_case	; invert skip bit for case
 	STZ scratch_skip	; no longer skip
-	BRA scratch		; back to top
+	BRA scratch_loop	; back to top
 :scratch_escape
-	LDA #$20 ; space
-	JSR printchar		; print blank
-	STZ printchar_pos_x
-	STZ printchar_pos_y	; start at top-left corner of screen
+	JSR clearscreen
+	STZ printchar_x
+	STZ printchar_y		; start at top-left corner of screen
 	BRA scratch_cursor	; print cursor
+:scratch_exit
+	JMP tetra_start		; jump to game when you press F1
 :scratch_return
 	LDA #$20 ; space
 	JSR printchar		; print blank
-	STZ printchar_pos_x
-	INC printchar_pos_y	; go down a row
-	LDA printchar_pos_y
+	STZ printchar_x
+	INC printchar_y		; go down a row
+	LDA printchar_y
 	CLC
 	CMP #$1E		; 30 rows
 	BCC scratch_cursor
 	LDA #$1D
-	STA printchar_pos_y	; if too low, back up a row
+	STA printchar_y		; if too low, back up a row
 	BRA scratch_cursor	; print cursor
 :scratch_backspace
 	LDA #$20 ; space
 	JSR printchar		; print a blank
-	DEC printchar_pos_x	; back up a column
-	LDA printchar_pos_x
+	DEC printchar_x		; back up a column
+	LDA printchar_x
 	CMP #$FF
 	BNE scratch_cursor
-	STZ printchar_pos_x	; if it went too far, zero it out
+	STZ printchar_x		; if it went too far, zero it out
 	BRA scratch_cursor	; print cursor
 :scratch_draw
 	JSR printchar		; draw ASCII character
-	INC printchar_pos_x	; move column over by one
-	LDA printchar_pos_x
+	INC printchar_x		; move column over by one
+	LDA printchar_x
 	CMP #$50		; 80 columns
 	BCC scratch_cursor
 	LDA #$4F
-	STA printchar_pos_x	; if too far, back up a column
+	STA printchar_x		; if too far, back up a column
 :scratch_cursor
 	LDA #$2A ; star
 	JSR printchar		; print cursor
-	JMP scratch		; back to top
+	JMP scratch_loop	; back to top
 :scratch_case
 .DAT $00
 :scratch_skip
 .DAT $00
 
+
 ; prints a character to the screen
-; change printchar_pos_x and printchar_pos_y as needed
+; change printchar_x and printchar_y as needed
 ; A = ASCII character
 :printchar
 	PHY
@@ -15562,13 +15625,13 @@
 	STZ printchar_store_b
 	LDA #$02 ; start in bank $02
 	STA printchar_store_c
-	LDA printchar_pos_x
+	LDA printchar_x
 	ASL
 	CLC
 	ROL
 	ROL printchar_store_b
 	STA printchar_store_a
-	LDA printchar_pos_y
+	LDA printchar_y
 	ASL
 	ASL
 	ASL
@@ -15612,9 +15675,44 @@
 	PLX
 	PLY
 	RTS
-:printchar_pos_x
+
+; clears the screen, makes all black
+; uses printchar sub-routines
+:clearscreen
+	PHY
+	PHX
+	PHA
+	STZ printchar_store_a
+	STZ printchar_store_b
+	LDA #$02
+	STA printchar_store_c
+	LDA #$00 ; black
+*
+	JSR printchar_store
+	INC printchar_store_a
+	BNE -
+	LDX printchar_store_c
+	CPX #$03
+	BNE +
+	LDX printchar_store_b
+	CPX #$DF
+	BNE +
+	DEC printchar_store_c
+	BRA ++
+*
+	INC printchar_store_b
+	BNE --
+	INC printchar_store_c
+	BRA --
+*
+	PLA
+	PLX
+	PLY
+	RTS
+
+:printchar_x
 .DAT $00
-:printchar_pos_y
+:printchar_y
 .DAT $00
 :printchar_load
 .DAT $BD ; LDAax
@@ -15633,9 +15731,957 @@
 .DAT $00 ; bank
 .DAT $60 ; RTS
 
+:tetra_start
+	LDA #$11 ; arbitrary
+	STA tetra_delay_amount
+	LDA #$01
+	STA tetra_next_piece
+	STZ tetra_score_low
+	STZ tetra_score_high
 
-; still TONS of room here!
+	JSR clearscreen
 
+:tetra_setup
+	LDA #$06
+	STA tetra_piece_x
+	STZ tetra_piece_y
+*
+	LDA tetra_next_piece
+	STA tetra_piece_shape
+	JSR tetra_random ; loads A with random number
+	AND #$07
+	BEQ -
+	STA tetra_next_piece
+	STZ tetra_piece_rotation
+
+	STZ tetra_delay_low
+	LDA tetra_delay_amount
+	STA tetra_delay_high
+
+	JSR tetra_clear
+	JSR tetra_piece
+	LDA #$FF ; whole screen
+	JSR tetra_display
+
+	LDY #$00
+:tetra_loop
+	DEY
+	BEQ tetra_break
+	LDA key_read
+	CMP key_write
+	BEQ tetra_loop
+	TAX
+	LDA key_read
+	INC
+	STA key_read
+	LDA key_array,X
+	CMP #$E0
+	BEQ tetra_loop
+	CMP #$F0
+	BNE tetra_controls
+	LDA key_read
+	INC
+	STA key_read
+	BRA tetra_loop
+
+:tetra_break
+	DEC tetra_delay_low
+	BNE tetra_loop
+	DEC tetra_delay_high
+	BNE tetra_loop
+	BRA tetra_down
+
+:tetra_up
+	STZ tetra_delay_low
+	LDA tetra_delay_amount
+	STA tetra_delay_high
+	BRA tetra_loop
+
+:tetra_down
+	STZ tetra_delay_low
+	LDA tetra_delay_amount
+	STA tetra_delay_high
+	INC tetra_piece_y
+	JSR tetra_clear
+	JSR tetra_piece
+	CMP #$00 ; needed
+	BEQ +
+	JMP tetra_draw
+*
+	DEC tetra_piece_y
+	BNE +
+	JMP tetra_over ; not coming back
+*
+	JSR tetra_piece
+	JSR tetra_solid
+	LDA #$FF ; whole screen
+	JSR tetra_display
+	JMP tetra_setup
+
+:tetra_controls
+	PHA
+	JSR tetra_random ; increases randomness
+	PLA
+	CMP #$1D ; W for up
+	BEQ tetra_up
+	CMP #$1B ; S for down
+	BEQ tetra_down
+	CMP #$1C ; A for left
+	BEQ tetra_left
+	CMP #$23 ; D for right
+	BEQ tetra_right
+	CMP #$29 ; space for rotate CW
+	BEQ tetra_rot_cw
+	CMP #$24 ; E for rotate CW
+	BEQ tetra_rot_cw
+	CMP #$15 ; Q for rotate CCW
+	BEQ tetra_rot_ccw
+	CMP #$76 ; escape
+	BEQ +
+	JMP tetra_loop
+*
+	JMP scratch_start
+
+:tetra_left
+	DEC tetra_piece_x
+	JSR tetra_clear
+	JSR tetra_piece
+	CMP #$00 ; needed
+	BEQ +
+	JMP tetra_draw
+*
+	INC tetra_piece_x
+	JSR tetra_piece
+	JMP tetra_draw
+
+:tetra_right
+	INC tetra_piece_x
+	JSR tetra_clear
+	JSR tetra_piece
+	CMP #$00 ; needed
+	BEQ +
+	JMP tetra_draw
+*
+	DEC tetra_piece_x
+	JSR tetra_piece
+	JMP tetra_draw
+
+:tetra_rot_cw
+	LDA tetra_piece_rotation
+	CLC
+	ADC #$10
+	AND #$30
+	STA tetra_piece_rotation
+	JSR tetra_clear
+	JSR tetra_piece
+	CMP #$00 ; needed
+	BNE tetra_draw
+	LDA tetra_piece_rotation
+	SEC
+	SBC #$10
+	AND #$30
+	STA tetra_piece_rotation
+	JSR tetra_piece
+	BRA tetra_draw
+
+:tetra_rot_ccw
+	LDA tetra_piece_rotation
+	SEC
+	SBC #$10
+	AND #$30
+	STA tetra_piece_rotation
+	JSR tetra_clear
+	JSR tetra_piece
+	CMP #$00 ; needed
+	BNE tetra_draw
+	LDA tetra_piece_rotation
+	CLC
+	ADC #$10
+	AND #$30
+	STA tetra_piece_rotation
+	JSR tetra_piece
+	BRA tetra_draw
+
+:tetra_draw
+	LDA #$00 ; only piece
+	JSR tetra_display
+	JMP tetra_loop
+
+:tetra_clear
+	PHX
+	PHA
+	LDX #$00
+*
+	LDA tetra_board,X
+	CMP #$40
+	BNE +
+	STZ tetra_board,X
+*
+	INX
+	BNE --
+	PLA
+	PLX
+	RTS
+
+:tetra_solid
+	PHY
+	PHX
+	PHA
+	LDX #$00
+*
+	LDA tetra_board,X
+	CMP #$40
+	BNE +
+	LDA #$80
+	STA tetra_board,X
+*
+	INX
+	BNE --
+
+	LDX #$00
+	LDY #$00
+*
+	LDA tetra_board,X
+	CMP #$80
+	BNE +
+	INY
+*
+	INX
+	TXA
+	AND #$0F
+	BNE --
+	TYA
+	LDY #$00
+	CMP #$0A ; 10 columns
+	BNE +
+	TXA
+	DEC
+	JSR tetra_line
+*
+	CPX #$00
+	BNE ---
+
+	PLA
+	PLX
+	PLY
+	RTS
+
+; A has needed position
+:tetra_line
+	PHY
+	PHX
+	PHA
+	TAX
+	SEC
+	SBC #$10
+	TAY
+*
+	LDA tetra_board,Y
+	STA tetra_board,X
+	DEX
+	DEY
+	BNE -
+	INC tetra_score_low
+	BNE +
+	INC tetra_score_high
+*
+	LDA tetra_score_low
+	AND #$0F
+	BNE +
+	DEC tetra_delay_amount
+	BNE +
+	INC tetra_delay_amount
+*
+	PLA
+	PLX
+	PLY
+	RTS
+
+; returns $00 on failure, and $FF on success
+:tetra_piece
+	PHY
+	PHX
+	LDA tetra_piece_y
+	PHA
+	LDA tetra_piece_x
+	PHA
+	LDA tetra_piece_shape
+	AND #$0F
+	ASL
+	ASL
+	ASL
+	ASL
+	ASL
+	CLC
+	ROL
+	STA tetra_read_low
+	LDA #>tetra_bitmap
+	ADC #$00 ; add carry
+	STA tetra_read_high
+	LDA tetra_piece_rotation
+	AND #$F0
+	CLC
+	ADC tetra_read_low
+	STA tetra_read_low
+	LDY #$00
+*
+	JSR tetra_read
+	BEQ ++
+	LDA tetra_piece_y
+	ASL
+	ASL
+	ASL
+	ASL
+	CLC
+	ADC tetra_piece_x
+	TAX
+	LDA tetra_board,X
+	BEQ +
+	JSR tetra_clear
+	PLA
+	STA tetra_piece_x
+	PLA
+	STA tetra_piece_y
+	LDA #$00 ; failure
+	PLX
+	PLY
+	RTS
+*
+	LDA #$40
+	STA tetra_board,X
+*
+	INC tetra_read_low
+	INC tetra_piece_x
+	TYA
+	AND #$03
+	CMP #$03
+	BNE +
+	PLA
+	STA tetra_piece_x
+	PHA
+	INC tetra_piece_y
+*
+	INY
+	CPY #$10
+	BNE ----
+	PLA
+	STA tetra_piece_x
+	PLA
+	STA tetra_piece_y
+	LDA #$FF ; success
+	PLX
+	PLY
+	RTS
+
+; A determines if whole screen is drawn, or just the piece
+:tetra_display
+	PHY
+	PHX
+	PHA
+	STA tetra_display_type
+	STZ tetra_block_x
+	STZ tetra_block_y
+	LDX #$00
+*
+	LDA tetra_display_type
+	BNE +
+	TXA
+	AND #$0F
+	SEC
+	SBC tetra_piece_x
+	INC
+	CLC
+	CMP #$06
+	BCS +++++	
+	TXA
+	AND #$F0
+	CLC
+	ROR
+	ROR
+	ROR
+	ROR
+	SEC
+	SBC tetra_piece_y
+	INC
+	CLC
+	CMP #$06
+	BCS +++++
+*
+	LDA tetra_board,X
+	BEQ +
+	CMP #$FF
+	BEQ ++
+	CMP #$80
+	BEQ +++
+	LDA #$3D ; equals
+	JSR tetra_block
+	BRA ++++
+*
+	LDA #$20 ; space
+	JSR tetra_block
+	BRA +++
+*
+	LDA #$23 ; pound
+	JSR tetra_block
+	BRA ++
+*
+	LDA #$2A ; star
+	JSR tetra_block
+*
+	INC tetra_block_x
+	INX
+	BEQ +
+	TXA
+	AND #$0F
+	BNE ------
+	STZ tetra_block_x
+	INC tetra_block_y
+	BRA ------
+*
+	LDA tetra_display_type
+	BEQ +
+	JSR tetra_score
+	JSR tetra_next
+*
+	PLA
+	PLX
+	PLY
+	RTS
+
+:tetra_display_type
+.DAT $FF ; $00 for only the piece, anything else for whole screen
+
+:tetra_block
+; If you want to use 'printchar', then use below!
+;	PHA
+;	LDA tetra_block_x
+;	STA printchar_x
+;	LDA tetra_block_y
+;	STA printchar_y
+;	PLA
+;	JSR printchar
+;	RTS
+
+	PHY
+	PHX
+	PHA
+	LDA tetra_block_y
+	CLC
+	CMP #$0F
+	BCS tetra_block_exit
+
+	LDX #$00
+	LDY #$00
+	LDA tetra_block_x
+	ASL
+	ASL
+	ASL
+	ASL
+	STA tetra_store_low
+	LDA tetra_block_y
+	ASL
+	ASL
+	ASL
+	ASL
+	CLC
+	ROL
+	STA tetra_store_high
+	LDA #$00
+	ADC #$02 ; add carry also
+	STA tetra_store_bank
+
+	PLA
+	PHA
+	CMP #$3D ; equals
+	BEQ tetra_block_piece
+	CMP #$23 ; pound
+	BEQ tetra_block_wall
+	CMP #$2A ; star
+	BEQ tetra_block_solid
+	BRA tetra_block_blank
+
+:tetra_block_ready	
+	JSR tetra_store
+	INC tetra_store_low
+	INX
+	CPX #$10
+	BNE tetra_block_ready
+	PHA
+	LDA tetra_store_low
+	SEC
+	SBC #$10
+	STA tetra_store_low
+	PLA
+	INC tetra_store_high
+	INC tetra_store_high
+	BNE +
+	INC tetra_store_bank
+*
+	LDX #$00
+	INY
+	CPY #$10
+	BNE tetra_block_ready
+
+:tetra_block_exit
+	PLA
+	PLX
+	PLY
+	RTS
+
+:tetra_block_blank
+	LDA #$00 ; black
+	BRA tetra_block_ready
+:tetra_block_piece
+	LDA #$33 ; magenta
+	BRA tetra_block_ready
+:tetra_block_solid
+	LDA #$0F ; cyan
+	BRA tetra_block_ready
+:tetra_block_wall
+	LDA #$3F ; white
+	BRA tetra_block_ready
+
+:tetra_block_x
+.DAT $00
+:tetra_block_y
+.DAT $00
+
+:tetra_score
+	LDA #$41
+	STA printchar_x
+	LDA #$01
+	STA printchar_y
+	LDX #$00
+*
+	LDA tetra_score_text,X
+	JSR printchar
+	INC printchar_x
+	INX
+	CPX #$07
+	BNE -
+
+	STZ tetra_score_ones
+	STZ tetra_score_tens
+	STZ tetra_score_hundreds
+	STZ tetra_score_thousands
+	LDA tetra_score_low
+	STA tetra_score_low_copy
+	LDA tetra_score_high
+	STA tetra_score_high_copy
+
+*
+	LDA tetra_score_high
+	BNE +
+	LDA tetra_score_low_copy
+	BNE +
+	BRA tetra_score_exit
+*
+	DEC tetra_score_low_copy
+	LDA tetra_score_low_copy
+	CMP #$FF
+	BNE +
+	DEC tetra_score_high_copy
+*	
+	INC tetra_score_ones
+	LDA tetra_score_ones
+	CMP #$0A
+	BNE ---
+	STZ tetra_score_ones
+	INC tetra_score_tens
+	LDA tetra_score_tens
+	CMP #$0A
+	BNE ---
+	STZ tetra_score_tens
+	INC tetra_score_hundreds
+	LDA tetra_score_hundreds
+	CMP #$0A
+	BNE ---
+	STZ tetra_score_hundreds
+	INC tetra_score_thousands
+	LDA tetra_score_thousands
+	CMP #$0A
+	BNE ---
+	STZ tetra_score_thousands
+	BRA ---
+
+:tetra_score_exit
+	LDX #$00
+*
+	LDA tetra_score_thousands,X
+	CLC
+	ADC #$30 ; from zero
+	JSR printchar
+	INC printchar_x
+	INX
+	CPX #$04
+	BNE -
+	RTS
+
+:tetra_score_text
+.DAT "Score: "
+
+:tetra_score_low
+.DAT $00
+:tetra_score_high
+.DAT $00
+:tetra_score_low_copy
+.DAT $00
+:tetra_score_high_copy
+.DAT $00
+:tetra_score_thousands
+.DAT $00
+:tetra_score_hundreds
+.DAT $00
+:tetra_score_tens
+.DAT $00
+:tetra_score_ones
+.DAT $00
+
+
+
+:tetra_next
+	LDA #$41
+	STA printchar_x
+	LDA #$03
+	STA printchar_y
+	LDX #$00
+*
+	LDA tetra_next_text,X
+	JSR printchar
+	INC printchar_x
+	INX
+	CPX #$06
+	BNE -
+
+	LDX tetra_next_piece
+	LDA tetra_next_letter,X
+	JSR printchar
+	RTS
+
+:tetra_next_text
+.DAT "Next: "
+
+:tetra_next_letter
+.DAT " IJLOSTZ"
+
+:tetra_next_piece
+.DAT $01 ; next shape value
+
+:tetra_over
+	LDA #$41
+	STA printchar_x
+	LDA #$05
+	STA printchar_y
+	LDX #$00
+*
+	LDA tetra_over_text_a,X
+	JSR printchar
+	INC printchar_x
+	INX
+	CPX #$09
+	BNE -
+
+	LDA #$41
+	STA printchar_x
+	LDA #$07
+	STA printchar_y
+	LDX #$00
+*
+	LDA tetra_over_text_b,X
+	JSR printchar
+	INC printchar_x
+	INX
+	CPX #$0C
+	BNE -
+
+:tetra_over_loop
+	LDA key_read
+	CMP key_write
+	BEQ tetra_over_loop
+	TAX
+	LDA key_read
+	INC
+	STA key_read
+	LDA key_array,X
+	CMP #$76 ; escape
+	BNE tetra_over_loop
+	LDX #$00
+*
+	LDA tetra_board,X
+	BEQ +
+	CMP #$FF
+	BEQ +
+	STZ tetra_board,X
+*
+	INX
+	BNE --	
+	JMP scratch_start
+
+:tetra_over_text_a
+.DAT "Game Over"
+:tetra_over_text_b
+.DAT "Press Escape"
+
+; simple Galois random number generator 
+:tetra_random
+	LDA tetra_random_value
+	ASL
+	BCC +
+	EOR #$CF
+*
+	STA tetra_random_value
+	RTS
+
+:tetra_random_value
+.DAT $01 ; must not be zero
+
+
+:tetra_delay_low
+.DAT $00
+:tetra_delay_high
+.DAT $00
+:tetra_delay_amount
+.DAT $10 ; amount to be stored in 'tetra_delay_high'
+
+:tetra_piece_x
+.DAT $00
+:tetra_piece_y
+.DAT $00
+:tetra_piece_shape
+.DAT $00 ; low nibble, values $00 to $07, or $08 to $0F for black
+:tetra_piece_rotation
+.DAT $00 ; high nibble, values $00 to $30
+
+:tetra_read
+.DAT $AD ; LDAa
+:tetra_read_low
+.DAT $00
+:tetra_read_high
+.DAT $00
+.DAT $60 ; RTS
+
+:tetra_store
+.DAT $8F ; STAal
+:tetra_store_low
+.DAT $00
+:tetra_store_high
+.DAT $00
+:tetra_store_bank
+.DAT $02
+.DAT $60 ; RTS
+
+
+
+; lots of room here!
+
+.LOC end of code
+
+.ORG $03F900
+
+:tetra_bitmap
+; blank
+.DAT $00,$00,$00,$00
+.DAT $00,$00,$00,$00
+.DAT $00,$00,$00,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$00,$00,$00
+.DAT $00,$00,$00,$00
+.DAT $00,$00,$00,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$00,$00,$00
+.DAT $00,$00,$00,$00
+.DAT $00,$00,$00,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$00,$00,$00
+.DAT $00,$00,$00,$00
+.DAT $00,$00,$00,$00
+.DAT $00,$00,$00,$00
+
+; I
+.DAT $00,$0A,$00,$00
+.DAT $00,$0A,$00,$00
+.DAT $00,$0A,$00,$00
+.DAT $00,$0A,$00,$00
+
+.DAT $00,$00,$00,$00
+.DAT $0A,$0A,$0A,$0A
+.DAT $00,$00,$00,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$0A,$00,$00
+.DAT $00,$0A,$00,$00
+.DAT $00,$0A,$00,$00
+.DAT $00,$0A,$00,$00
+
+.DAT $00,$00,$00,$00
+.DAT $0A,$0A,$0A,$0A
+.DAT $00,$00,$00,$00
+.DAT $00,$00,$00,$00
+
+; J
+.DAT $00,$00,$03,$00
+.DAT $00,$00,$03,$00
+.DAT $00,$03,$03,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$00,$00,$00
+.DAT $00,$03,$00,$00
+.DAT $00,$03,$03,$03
+.DAT $00,$00,$00,$00
+
+.DAT $00,$00,$00,$00
+.DAT $00,$03,$03,$00
+.DAT $00,$03,$00,$00
+.DAT $00,$03,$00,$00
+
+.DAT $00,$00,$00,$00
+.DAT $03,$03,$03,$00
+.DAT $00,$00,$03,$00
+.DAT $00,$00,$00,$00
+
+; L
+.DAT $00,$24,$00,$00
+.DAT $00,$24,$00,$00
+.DAT $00,$24,$24,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$00,$00,$00
+.DAT $00,$24,$24,$24
+.DAT $00,$24,$00,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$00,$00,$00
+.DAT $00,$24,$24,$00
+.DAT $00,$00,$24,$00
+.DAT $00,$00,$24,$00
+
+.DAT $00,$00,$00,$00
+.DAT $00,$00,$24,$00
+.DAT $24,$24,$24,$00
+.DAT $00,$00,$00,$00
+
+; O
+.DAT $00,$00,$00,$00
+.DAT $00,$28,$28,$00
+.DAT $00,$28,$28,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$00,$00,$00
+.DAT $00,$28,$28,$00
+.DAT $00,$28,$28,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$00,$00,$00
+.DAT $00,$28,$28,$00
+.DAT $00,$28,$28,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$00,$00,$00
+.DAT $00,$28,$28,$00
+.DAT $00,$28,$28,$00
+.DAT $00,$00,$00,$00
+
+; S
+.DAT $00,$00,$00,$00
+.DAT $00,$0C,$0C,$00
+.DAT $0C,$0C,$00,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$0C,$00,$00
+.DAT $00,$0C,$0C,$00
+.DAT $00,$00,$0C,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$00,$00,$00
+.DAT $00,$0C,$0C,$00
+.DAT $0C,$0C,$00,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$0C,$00,$00
+.DAT $00,$0C,$0C,$00
+.DAT $00,$00,$0C,$00
+.DAT $00,$00,$00,$00
+
+; T
+.DAT $00,$00,$00,$00
+.DAT $22,$22,$22,$00
+.DAT $00,$22,$00,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$22,$00,$00
+.DAT $22,$22,$00,$00
+.DAT $00,$22,$00,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$22,$00,$00
+.DAT $22,$22,$22,$00
+.DAT $00,$00,$00,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$22,$00,$00
+.DAT $00,$22,$22,$00
+.DAT $00,$22,$00,$00
+.DAT $00,$00,$00,$00
+
+; Z
+.DAT $00,$00,$00,$00
+.DAT $30,$30,$00,$00
+.DAT $00,$30,$30,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$30,$00,$00
+.DAT $30,$30,$00,$00
+.DAT $30,$00,$00,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$00,$00,$00
+.DAT $30,$30,$00,$00
+.DAT $00,$30,$30,$00
+.DAT $00,$00,$00,$00
+
+.DAT $00,$30,$00,$00
+.DAT $30,$30,$00,$00
+.DAT $30,$00,$00,$00
+.DAT $00,$00,$00,$00
+
+.ORG $03FB00
+
+:tetra_board
+.DAT $FF,$FF,$FF,$00,$00,$00,$00,$00
+.DAT $00,$00,$00,$00,$00,$FF,$FF,$FF
+.DAT $FF,$FF,$FF,$00,$00,$00,$00,$00
+.DAT $00,$00,$00,$00,$00,$FF,$FF,$FF
+.DAT $FF,$FF,$FF,$00,$00,$00,$00,$00
+.DAT $00,$00,$00,$00,$00,$FF,$FF,$FF
+.DAT $FF,$FF,$FF,$00,$00,$00,$00,$00
+.DAT $00,$00,$00,$00,$00,$FF,$FF,$FF
+.DAT $FF,$FF,$FF,$00,$00,$00,$00,$00
+.DAT $00,$00,$00,$00,$00,$FF,$FF,$FF
+.DAT $FF,$FF,$FF,$00,$00,$00,$00,$00
+.DAT $00,$00,$00,$00,$00,$FF,$FF,$FF
+.DAT $FF,$FF,$FF,$00,$00,$00,$00,$00
+.DAT $00,$00,$00,$00,$00,$FF,$FF,$FF
+.DAT $FF,$FF,$FF,$00,$00,$00,$00,$00
+.DAT $00,$00,$00,$00,$00,$FF,$FF,$FF
+.DAT $FF,$FF,$FF,$00,$00,$00,$00,$00
+.DAT $00,$00,$00,$00,$00,$FF,$FF,$FF
+.DAT $FF,$FF,$FF,$00,$00,$00,$00,$00
+.DAT $00,$00,$00,$00,$00,$FF,$FF,$FF
+.DAT $FF,$FF,$FF,$00,$00,$00,$00,$00
+.DAT $00,$00,$00,$00,$00,$FF,$FF,$FF
+.DAT $FF,$FF,$FF,$00,$00,$00,$00,$00
+.DAT $00,$00,$00,$00,$00,$FF,$FF,$FF
+.DAT $FF,$FF,$FF,$00,$00,$00,$00,$00
+.DAT $00,$00,$00,$00,$00,$FF,$FF,$FF
+.DAT $FF,$FF,$FF,$00,$00,$00,$00,$00
+.DAT $00,$00,$00,$00,$00,$FF,$FF,$FF
+.DAT $FF,$FF,$FF,$00,$00,$00,$00,$00
+.DAT $00,$00,$00,$00,$00,$FF,$FF,$FF
+.DAT $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+.DAT $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
 
 .ORG $03FC00
 

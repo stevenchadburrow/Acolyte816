@@ -10,6 +10,8 @@
 #include <string.h>
 #include <math.h>
 
+const int number_of_passes = 16; // 3 just isn't enough!
+
 unsigned long current_line = 0;
 unsigned long current_location = 0;
 
@@ -446,7 +448,7 @@ int read_value(FILE *input, int pass, unsigned long &value, int &count, unsigned
 
 			if (comment == false) 
 			{
-				if (pass > 1) // not on first or second passes
+				if (pass >= number_of_passes-1) // not on first or second passes
 				{
 					printf("Line %lu: Unknown equal/label %s\n", current_line, name);
 				}
@@ -474,7 +476,7 @@ int read_value(FILE *input, int pass, unsigned long &value, int &count, unsigned
 				}
 				else
 				{
-					if (pass > 1) // not on first or second passes
+					if (pass >= number_of_passes-1) // not on first or second passes
 					{
 						printf("Line %lu: Unknown star location\n", current_line);
 					}
@@ -486,7 +488,7 @@ int read_value(FILE *input, int pass, unsigned long &value, int &count, unsigned
 
 		if (comment == false)
 		{
-			if (pass > 1) // not on first or second passes
+			if (pass >= number_of_passes-1) // not on first or second passes
 			{
 				printf("Line %lu: Unknown star location\n", current_line);
 			}
@@ -780,7 +782,7 @@ int read_line(FILE *input, int pass)
 
 									if (comment == false) 
 									{
-										if (pass > 1) // not on first or second passes
+										if (pass >= number_of_passes-1) // not on first or second passes
 										{
 											printf("Line %lu: Unknown label %s\n", current_line, name);
 										}
@@ -850,7 +852,7 @@ int read_line(FILE *input, int pass)
 
 						if (comment == false) 
 						{
-							if (pass > 1) // not on first or second passes
+							if (pass >= number_of_passes-1) // not on first or second passes
 							{
 								printf("Line %lu: Unknown label %s\n", current_line, name);
 							}
@@ -903,7 +905,7 @@ int read_line(FILE *input, int pass)
 						}
 					}
 
-					if (pass > 1) // not on first or second passes
+					if (pass >= number_of_passes-1) // not on first or second passes
 					{
 						printf("Line %lu: $%06lx %s\n", current_line, current_location, name);
 					}
@@ -1288,7 +1290,7 @@ int read_line(FILE *input, int pass)
 								binary_code[current_location+1] = 0x00;
 								binary_code[current_location+2] = 0x00;
 
-								if (pass > 1) printf("Line %lu: Relative branch too far, dist %ld\n", current_line, dist);
+								if (pass >= number_of_passes-1) printf("Line %lu: Relative branch too far, dist %ld\n", current_line, dist);
 							}
 							else
 							{
@@ -1320,7 +1322,7 @@ int read_line(FILE *input, int pass)
 							{
 								binary_code[current_location+1] = 0x00;
 
-								if (pass > 1) printf("Line %lu: Relative branch too far, dist %ld, %lx and %lx\n", 
+								if (pass >= number_of_passes-1) printf("Line %lu: Relative branch too far, dist %ld, %lx and %lx\n", 
 									current_line, dist, value, current_location+2);
 							}
 							else
@@ -1337,7 +1339,7 @@ int read_line(FILE *input, int pass)
 
 				if (comment == false)
 				{
-					if (pass > 1) // not on first or second passes
+					if (pass >= number_of_passes-1) // not on first or second passes
 					{
 						printf("Line %lu: Unknown instruction %s, operand %lx\n", current_line, name, value);
 					}
@@ -1389,7 +1391,7 @@ int main(const int argc, const char **argv)
 	FILE *input;
 	int bytes;
 
-	for (int i=0; i<3; i++) // number of passes
+	for (int i=0; i<16; i++) // number of passes
 	{
 		printf("Pass %d\n", i+1);
 
