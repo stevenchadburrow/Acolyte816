@@ -12,10 +12,19 @@ A picture of what the board will look like after getting it printed and soldered
 
 <img src="Acolyte816-Routed.png">
 
-Demo showing 64-colors, text display, and keyboard input.
+Splash showing 64-colors and text display together.
 
-<img src="Simulator-Demo.png">
+<img src="Simulator-Splash.png">
 
 Bootloader monitor, a fallback when SDcard is not present.
 
 <img src="Simulator-Bootloader.png">
+
+Scratchpad to test the keyboard functionality.
+
+<img src="Simulator-Scratch.png">
+
+First game for the system: Tetra!
+
+<img src="Simulator-Tetra.png">
+
