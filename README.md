@@ -16,17 +16,25 @@ A picture of what the board will look like after getting it printed and soldered
 
 Splash showing 64-colors and text display together.
 
-<img style="padding:1px;border:thin solid black;" src="Simulator-Splash.png">
+<kbd>
+<img src="Simulator-Splash.png">
+</kbd>
 
 Bootloader monitor, a fallback when SDcard is not present.
 
-<img style="padding:1px;border:thin solid black;" src="Simulator-Bootloader.png">
+<kbd>
+<img src="Simulator-Bootloader.png">
+</kbd>
 
 Scratchpad to test the keyboard functionality.
 
-<img style="padding:1px;border:thin solid black;" src="Simulator-Scratch.png">
+<kbd>
+<img src="Simulator-Scratch.png">
+</kbd>
 
 First game for the system: Tetra!
 
-<img style="padding:1px;border:thin solid black;" src="Simulator-Tetra.png">
+<kbd>
+<img src="Simulator-Tetra.png">
+</kbd>
 
