@@ -33,6 +33,12 @@
 #include <time.h>
 #include <string.h>
 
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <termios.h>
+
 #include <GLFW/glfw3.h>
 #include <GL/gl.h>
 #include <GL/glu.h>
@@ -106,6 +112,10 @@ clock_t open_clock_previous, open_clock_current;
 uint8_t MEMORY[16777216]; // 16MB of RAM
 uint32_t KEY_ARRAY = 0x00000200; // need the location for keyboard buffer
 uint32_t KEY_POS_WRITE = 0x0000FFDC; // need the location for keyboard buffer
+uint32_t SHIFT_REGISTER = 0x0001000A; // SR from VIA to CPLD for vertical scrolling
+uint8_t VERTICAL_SCROLL = 0x00;
+
+const bool console = false; // runs 'stdin' on for memory stuff??
 
 mos6502 *CPU;
 
@@ -114,6 +124,11 @@ void WriteFunction(uint32_t address, uint8_t value)
 	if (verbose) printf("Write %06x %02x\n", address, value);
 
 	MEMORY[address] = value;
+
+	if (address == SHIFT_REGISTER)
+	{
+		VERTICAL_SCROLL = value;
+	}
 };
 
 uint8_t ReadFunction(uint32_t address)
@@ -410,6 +425,28 @@ uint8_t PS2KeyCode(int key)
  
 		case GLFW_KEY_SCROLL_LOCK:
 		{
+/*
+			for (unsigned long i=0x040000; i<0x041000; i+=0x000010)
+			{
+				printf("%06lx: ", i);
+
+				for (unsigned long j=0x000000; j<0x000010; j++)
+				{
+					printf("%02x ", MEMORY[i+j]);
+				}
+
+				for (unsigned long j=0x000000; j<0x000010; j++)
+				{
+					if (MEMORY[i+j] >= 0x20) printf("%c", MEMORY[i+j]);
+					else printf(" ");
+				}
+
+				printf("\n");
+			}
+
+			printf("\n");
+*/
+
 			return 0x7E;
 		}
  
@@ -951,27 +988,30 @@ void Draw()
 		white_b = (float)((MEMORY[i] & 0x40) >> 6);
 
 		coord_x = (float)(i % 512) * 2.0f + 1.0f;
-		coord_y = 480.0f - (float)((i / 512) % 256) * 2.0f;
+		coord_y = 480.0f - (float)((((i / 512 + (VERTICAL_SCROLL % 256)) % 256)) * 2);
 
-		glBegin(GL_LINES);
+		if (coord_y > 0.0f && coord_y <= 480.0f)
+		{
+			glBegin(GL_LINES);
 	
-		if ((MEMORY[i] & 0xC0) == 0x00) // color
-		{
-			glColor3f(red / 3.0f, green / 3.0f, blue / 3.0f);
-			glVertex3f((float)(coord_x),(float)coord_y,0.0f);
-			glVertex3f((float)(coord_x),(float)(coord_y-2),0.0f);
-			glVertex3f((float)(coord_x+1),(float)coord_y,0.0f);
-			glVertex3f((float)(coord_x+1),(float)(coord_y-2),0.0f);
-		}
-		else // mono
-		{
-			glColor3f(white_a, white_a, white_a);
-			glVertex3f((float)(coord_x),(float)coord_y,0.0f);
-			glVertex3f((float)(coord_x),(float)(coord_y-2),0.0f);
-
-			glColor3f(white_b, white_b, white_b);
-			glVertex3f((float)(coord_x+1),(float)coord_y,0.0f);
-			glVertex3f((float)(coord_x+1),(float)(coord_y-2),0.0f);
+			if ((MEMORY[i] & 0xC0) == 0x00) // color
+			{
+				glColor3f(red / 3.0f, green / 3.0f, blue / 3.0f);
+				glVertex3f((float)(coord_x),(float)coord_y,0.0f);
+				glVertex3f((float)(coord_x),(float)(coord_y-2),0.0f);
+				glVertex3f((float)(coord_x+1),(float)coord_y,0.0f);
+				glVertex3f((float)(coord_x+1),(float)(coord_y-2),0.0f);
+			}
+			else // mono
+			{
+				glColor3f(white_a, white_a, white_a);
+				glVertex3f((float)(coord_x),(float)coord_y,0.0f);
+				glVertex3f((float)(coord_x),(float)(coord_y-2),0.0f);
+	
+				glColor3f(white_b, white_b, white_b);
+				glVertex3f((float)(coord_x+1),(float)coord_y,0.0f);
+				glVertex3f((float)(coord_x+1),(float)(coord_y-2),0.0f);
+			}
 		}
 	}
 
@@ -1035,6 +1075,16 @@ int main(const int argc, const char **argv)
 		printf("Argument is a 128KB binary file used for memory\n");
 		
 		return 0;
+	}
+
+	if (console)
+	{
+		struct termios oldSettings, newSettings;
+
+    		tcgetattr( fileno( stdin ), &oldSettings );
+    		newSettings = oldSettings;
+    		newSettings.c_lflag &= (~ICANON & ~ECHO);
+    		tcsetattr( fileno( stdin ), TCSANOW, &newSettings );    
 	}
 
 	int temp;
@@ -1163,6 +1213,28 @@ int main(const int argc, const char **argv)
 
 		// poll for and process events
 		glfwPollEvents();
+
+		if (console)
+		{
+			fd_set set;
+			struct timeval tv;
+
+			tv.tv_sec = 0;
+			tv.tv_usec = 1;
+
+			FD_ZERO( &set );
+			FD_SET( fileno( stdin ), &set );
+
+			int res = select( fileno( stdin )+1, &set, NULL, NULL, &tv );
+			
+			if( res > 0 )
+			{
+				char c;
+				read( fileno( stdin ), &c, 1 );
+	
+				if (c == 'a') printf("here!\n");
+			}
+		}
 	}
 
 	printf("Exited\nA=%02x X=%02x Y=%02x S=%02x P=%06x R=%02x\n", CPU->A, CPU->X, CPU->Y, CPU->sp, CPU->pc, CPU->status);
