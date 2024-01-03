@@ -601,21 +601,6 @@ int read_line(FILE *input, int pass)
 				
 				loop = false;
 			}
-			else if (buffer == '*') // star
-			{
-				while (bytes > 0 && buffer != '\n')
-				{
-					bytes = fscanf(input, "%c", &buffer);
-				}
-
-				star_location[star_count] = current_location;
-		
-				star_count++;
-
-				if (pass == 0) star_total++;
-
-				loop = false;
-			}
 			else if (buffer == '.') // command
 			{
 				for (int i=0; i<256; i++) name[i] = 0;
@@ -917,422 +902,441 @@ int read_line(FILE *input, int pass)
 
 				loop = false;
 			}
-			else if (buffer == '\t' && pass > 0) // instruction
+			else
 			{
-				for (int i=0; i<256; i++) name[i] = 0;
-				
-				count = 0;
-
-				comment = false;
-
-				buffer = 0;
-
-				while (bytes > 0 && (buffer != ' ' && buffer != '\t' && buffer != ';' && buffer != '\n'))
+				if (buffer == '*') // star
 				{
-					bytes = fscanf(input, "%c", &buffer);
-		
-					if (bytes > 0 && buffer == '\n')
-					{
-						comment = true;
-					}
-					else if (bytes > 0 && buffer == ';')
-					{
-						comment = true;
-					}
-					else if (bytes > 0 && (buffer >= 'A' && buffer <= 'Z') && comment == false)
-					{
-						name[count] = buffer;
-
-						count++;
-					}
-				}
-
-				count = 0;
-				value = 0;
-				mods = 0;
-
-				if (comment == false)
-				{
-					bytes = read_value(input, pass, value, count, mods);
-				}
-				else
-				{
-					while (bytes > 0 && buffer != '\n')
+					while (bytes > 0 && buffer != '\n' && buffer != '\t')
 					{
 						bytes = fscanf(input, "%c", &buffer);
 					}
+	
+					star_location[star_count] = current_location;
+			
+					star_count++;
+	
+					if (pass == 0) star_total++;
+	
+					loop = false;
 				}
-
-				comment = false;
-
-				for (int i=0; i<1024; i+=4)
+	
+				if (buffer == '\t' && pass > 0) // instruction
 				{
-					if (strcmp(name, instruction_list[i]) == 0 &&
-						atoi(instruction_list[i+3]) == (int)(count / 2) + 1)
+					for (int i=0; i<256; i++) name[i] = 0;
+					
+					count = 0;
+
+					comment = false;
+
+					buffer = 0;
+
+					while (bytes > 0 && (buffer != ' ' && buffer != '\t' && buffer != ';' && buffer != '\n'))
 					{
-						if (mods == 0x00 && 
-							strcmp(instruction_list[i+1], "a") == 0)
+						bytes = fscanf(input, "%c", &buffer);
+			
+						if (bytes > 0 && buffer == '\n')
 						{
 							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);
-							binary_code[current_location+2] = (unsigned char)(value / 256);
-
-							current_location += 3;
-
-							break;
 						}
-						else if ((mods & 0x0A) == 0x0A && (mods & 0xF5) == 0x00 &&
-							strcmp(instruction_list[i+1], "(a,x)") == 0)
+						else if (bytes > 0 && buffer == ';')
 						{
 							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);
-							binary_code[current_location+2] = (unsigned char)(value / 256);
-
-							current_location += 3;
-
-							break;
 						}
-						else if ((mods & 0x08) == 0x08 && (mods & 0xF7) == 0x00 &&
-							strcmp(instruction_list[i+1], "a,x") == 0)
+						else if (bytes > 0 && (buffer >= 'A' && buffer <= 'Z') && comment == false)
 						{
-							comment = true;
+							name[count] = buffer;
 
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);
-							binary_code[current_location+2] = (unsigned char)(value / 256);
-
-							current_location += 3;
-
-							break;
-						}
-						else if ((mods & 0x10) == 0x10 && (mods & 0xEF) == 0x00 &&
-							strcmp(instruction_list[i+1], "a,y") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);
-							binary_code[current_location+2] = (unsigned char)(value / 256);
-
-							current_location += 3;
-
-							break;
-						}
-						else if ((mods & 0x02) == 0x02 && (mods & 0xFD) == 0x00 &&
-							strcmp(instruction_list[i+1], "(a)") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);
-							binary_code[current_location+2] = (unsigned char)(value / 256);
-
-							current_location += 3;
-
-							break;
-						}
-						else if ((mods & 0x08) == 0x08 && (mods & 0xF7) == 0x00 &&
-							strcmp(instruction_list[i+1], "al,x") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);
-							binary_code[current_location+2] = (unsigned char)((value / 256) % 256);
-							binary_code[current_location+3] = (unsigned char)((value / 65536) % 256);
-
-							current_location += 4;
-
-							break;
-						}
-						else if (mods == 0x00 && 
-							strcmp(instruction_list[i+1], "al") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);
-							binary_code[current_location+2] = (unsigned char)((value / 256) % 256);
-							binary_code[current_location+3] = (unsigned char)((value / 65536) % 256);
-
-							current_location += 4;
-
-							break;
-						}
-						else if (mods == 0x00 && 
-							strcmp(instruction_list[i+1], "A") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-					
-							current_location += 1;
-
-							break;
-						}
-						else if (mods == 0x00 && 
-							strcmp(instruction_list[i+1], "xyc") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);	
-
-							current_location += 2;
-
-							break;
-						}
-						else if ((mods & 0x0A) == 0x0A && (mods & 0xF5) == 0x00 &&
-							strcmp(instruction_list[i+1], "(d,x)") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);	
-
-							current_location += 2;
-
-							break;
-						}
-						else if ((mods & 0x08) == 0x08 && (mods & 0xF7) == 0x00 &&
-							strcmp(instruction_list[i+1], "d,x") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);	
-
-							current_location += 2;
-
-							break;
-						}
-						else if ((mods & 0x10) == 0x10 && (mods & 0xEF) == 0x00 &&
-							strcmp(instruction_list[i+1], "d,y") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);	
-
-							current_location += 2;
-
-							break;
-						}
-						else if ((mods & 0x12) == 0x12 && (mods & 0xED) == 0x00 &&
-							strcmp(instruction_list[i+1], "(d),y") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);	
-
-							current_location += 2;
-						
-							break;
-						}
-						else if ((mods & 0x14) == 0x14 && (mods & 0xEB) == 0x00 &&
-							strcmp(instruction_list[i+1], "[d],y") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);	
-
-							current_location += 2;
-
-							break;
-						}
-						else if ((mods & 0x04) == 0x04 && (mods & 0xFB) == 0x00 &&
-							strcmp(instruction_list[i+1], "[d]") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);	
-
-							current_location += 2;
-
-							break;
-						}
-						else if ((mods & 0x02) == 0x02 && (mods & 0xFD) == 0x00 &&
-							strcmp(instruction_list[i+1], "(d)") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);	
-
-							current_location += 2;
-
-							break;
-						}
-						else if (mods == 0x00 &&
-							strcmp(instruction_list[i+1], "d") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);	
-
-							current_location += 2;
-					
-							break;
-						}
-						else if ((mods & 0x01) == 0x01 && (mods & 0xFE) == 0x00 &&
-							strcmp(instruction_list[i+1], "#") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)value;
-
-							current_location += 2;
-
-							break;
-						}
-						else if (mods == 0x00 &&
-							strcmp(instruction_list[i+1], "i") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-
-							current_location += 1;
-
-							break;
-						}
-						else if (mods == 0x00 &&
-							strcmp(instruction_list[i+1], "rl") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);
-							binary_code[current_location+2] = (unsigned char)((value / 256) % 256);
-
-							current_location += 3;
-
-							break;
-						}
-						else if (mods == 0x00 &&
-							strcmp(instruction_list[i+1], "r") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);
-
-							current_location += 2;
-
-							break;
-						}
-						else if (mods == 0x00 &&
-							strcmp(instruction_list[i+1], "s") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-
-							current_location += 1;
-
-							break;
-						}
-						else if ((mods & 0x20) == 0x20 && (mods & 0xDF) == 0x00 &&
-							strcmp(instruction_list[i+1], "d,s") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);	
-
-							current_location += 2;
-					
-							break;
-						}
-						else if ((mods & 0x32) == 0x32 && (mods & 0xCD) == 0x00 &&
-							strcmp(instruction_list[i+1], "(d,s),y") == 0)
-						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-							binary_code[current_location+1] = (unsigned char)(value % 256);	
-
-							current_location += 2;
-					
-							break;
+							count++;
 						}
 					}
-					else if (strcmp(name, instruction_list[i]) == 0 &&
-						atoi(instruction_list[i+3]) == (int)(count / 2) + 0)
+
+					count = 0;
+					value = 0;
+					mods = 0;
+
+					if (comment == false)
 					{
-						if (mods == 0x00 &&
-							strcmp(instruction_list[i+1], "rl") == 0)
+						bytes = read_value(input, pass, value, count, mods);
+					}
+					else
+					{
+						while (bytes > 0 && buffer != '\n')
 						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-
-							if (value < current_location + 3)
-							{
-								dist = value - (current_location + 3);
-							}
-							else
-							{
-								dist = value - (current_location + 3);
-							}
-
-							if (dist < -32768 || dist > 32767)
-							{
-								binary_code[current_location+1] = 0x00;
-								binary_code[current_location+2] = 0x00;
-
-								if (pass >= number_of_passes-1) printf("Line %lu: Relative branch too far, dist %ld\n", current_line, dist);
-							}
-							else
-							{
-								binary_code[current_location+1] = (unsigned char)((unsigned int)(dist) % 256);
-								binary_code[current_location+2] = (unsigned char)(((unsigned int)(dist) / 256) % 256);
-							}
-
-							current_location += 3;
-
-							break;
+							bytes = fscanf(input, "%c", &buffer);
 						}
-						else if (mods == 0x00 &&
-							strcmp(instruction_list[i+1], "r") == 0)
+					}
+
+					comment = false;
+
+					for (int i=0; i<1024; i+=4)
+					{
+						if (strcmp(name, instruction_list[i]) == 0 &&
+							atoi(instruction_list[i+3]) == (int)(count / 2) + 1)
 						{
-							comment = true;
-
-							binary_code[current_location] = (unsigned char)(i / 4);
-
-							if (value < current_location + 2)
+							if (mods == 0x00 && 
+								strcmp(instruction_list[i+1], "a") == 0)
 							{
-								dist = value - ((current_location + 2) & 0x0000FFFF);
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);
+								binary_code[current_location+2] = (unsigned char)(value / 256);
+
+								current_location += 3;
+
+								break;
 							}
-							else
+							else if ((mods & 0x0A) == 0x0A && (mods & 0xF5) == 0x00 &&
+								strcmp(instruction_list[i+1], "(a,x)") == 0)
 							{
-								dist = value - ((current_location + 2) & 0x0000FFFF);
-							}
+								comment = true;
 
-							if (dist < -128 || dist > 127)
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);
+								binary_code[current_location+2] = (unsigned char)(value / 256);
+
+								current_location += 3;
+
+								break;
+							}
+							else if ((mods & 0x08) == 0x08 && (mods & 0xF7) == 0x00 &&
+								strcmp(instruction_list[i+1], "a,x") == 0)
 							{
-								binary_code[current_location+1] = 0x00;
+								comment = true;
 
-								if (pass >= number_of_passes-1) printf("Line %lu: Relative branch too far, dist %ld, %lx and %lx\n", 
-									current_line, dist, value, current_location+2);
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);
+								binary_code[current_location+2] = (unsigned char)(value / 256);
+
+								current_location += 3;
+
+								break;
 							}
-							else
+							else if ((mods & 0x10) == 0x10 && (mods & 0xEF) == 0x00 &&
+								strcmp(instruction_list[i+1], "a,y") == 0)
 							{
-								binary_code[current_location+1] = (unsigned char)(dist);
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);
+								binary_code[current_location+2] = (unsigned char)(value / 256);
+
+								current_location += 3;
+
+								break;
 							}
+							else if ((mods & 0x02) == 0x02 && (mods & 0xFD) == 0x00 &&
+								strcmp(instruction_list[i+1], "(a)") == 0)
+							{
+								comment = true;
 
-							current_location += 2;
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);
+								binary_code[current_location+2] = (unsigned char)(value / 256);
 
-							break;
+								current_location += 3;
+
+								break;
+							}
+							else if ((mods & 0x08) == 0x08 && (mods & 0xF7) == 0x00 &&
+								strcmp(instruction_list[i+1], "al,x") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);
+								binary_code[current_location+2] = (unsigned char)((value / 256) % 256);
+								binary_code[current_location+3] = (unsigned char)((value / 65536) % 256);
+
+								current_location += 4;
+
+								break;
+							}
+							else if (mods == 0x00 && 
+								strcmp(instruction_list[i+1], "al") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);
+								binary_code[current_location+2] = (unsigned char)((value / 256) % 256);
+								binary_code[current_location+3] = (unsigned char)((value / 65536) % 256);
+
+								current_location += 4;
+
+								break;
+							}
+							else if (mods == 0x00 && 
+								strcmp(instruction_list[i+1], "A") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+						
+								current_location += 1;
+
+								break;
+							}
+							else if (mods == 0x00 && 
+								strcmp(instruction_list[i+1], "xyc") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);	
+
+								current_location += 2;
+
+								break;
+							}
+							else if ((mods & 0x0A) == 0x0A && (mods & 0xF5) == 0x00 &&
+								strcmp(instruction_list[i+1], "(d,x)") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);	
+
+								current_location += 2;
+
+								break;
+							}
+							else if ((mods & 0x08) == 0x08 && (mods & 0xF7) == 0x00 &&
+								strcmp(instruction_list[i+1], "d,x") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);	
+
+								current_location += 2;
+
+								break;
+							}
+							else if ((mods & 0x10) == 0x10 && (mods & 0xEF) == 0x00 &&
+								strcmp(instruction_list[i+1], "d,y") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);	
+
+								current_location += 2;
+
+								break;
+							}
+							else if ((mods & 0x12) == 0x12 && (mods & 0xED) == 0x00 &&
+								strcmp(instruction_list[i+1], "(d),y") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);	
+
+								current_location += 2;
+							
+								break;
+							}
+							else if ((mods & 0x14) == 0x14 && (mods & 0xEB) == 0x00 &&
+								strcmp(instruction_list[i+1], "[d],y") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);	
+
+								current_location += 2;
+
+								break;
+							}
+							else if ((mods & 0x04) == 0x04 && (mods & 0xFB) == 0x00 &&
+								strcmp(instruction_list[i+1], "[d]") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);	
+
+								current_location += 2;
+
+								break;
+							}
+							else if ((mods & 0x02) == 0x02 && (mods & 0xFD) == 0x00 &&
+								strcmp(instruction_list[i+1], "(d)") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);	
+
+								current_location += 2;
+
+								break;
+							}
+							else if (mods == 0x00 &&
+								strcmp(instruction_list[i+1], "d") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);	
+
+								current_location += 2;
+						
+								break;
+							}
+							else if ((mods & 0x01) == 0x01 && (mods & 0xFE) == 0x00 &&
+								strcmp(instruction_list[i+1], "#") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)value;
+
+								current_location += 2;
+
+								break;
+							}
+							else if (mods == 0x00 &&
+								strcmp(instruction_list[i+1], "i") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+
+								current_location += 1;
+
+								break;
+							}
+							else if (mods == 0x00 &&
+								strcmp(instruction_list[i+1], "rl") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);
+								binary_code[current_location+2] = (unsigned char)((value / 256) % 256);
+
+								current_location += 3;
+
+								break;
+							}
+							else if (mods == 0x00 &&
+								strcmp(instruction_list[i+1], "r") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);
+
+								current_location += 2;
+
+								break;
+							}
+							else if (mods == 0x00 &&
+								strcmp(instruction_list[i+1], "s") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+
+								current_location += 1;
+
+								break;
+							}
+							else if ((mods & 0x20) == 0x20 && (mods & 0xDF) == 0x00 &&
+								strcmp(instruction_list[i+1], "d,s") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);	
+
+								current_location += 2;
+						
+								break;
+							}
+							else if ((mods & 0x32) == 0x32 && (mods & 0xCD) == 0x00 &&
+								strcmp(instruction_list[i+1], "(d,s),y") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+								binary_code[current_location+1] = (unsigned char)(value % 256);	
+
+								current_location += 2;
+						
+								break;
+							}
+						}
+						else if (strcmp(name, instruction_list[i]) == 0 &&
+							atoi(instruction_list[i+3]) == (int)(count / 2) + 0)
+						{
+							if (mods == 0x00 &&
+								strcmp(instruction_list[i+1], "rl") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+
+								if (value < current_location + 3)
+								{
+									dist = value - (current_location + 3);
+								}
+								else
+								{
+									dist = value - (current_location + 3);
+								}
+
+								if (dist < -32768 || dist > 32767)
+								{
+									binary_code[current_location+1] = 0x00;
+									binary_code[current_location+2] = 0x00;
+
+									if (pass >= number_of_passes-1) printf("Line %lu: Relative branch too far, dist %ld\n", current_line, dist);
+								}
+								else
+								{
+									binary_code[current_location+1] = (unsigned char)((unsigned int)(dist) % 256);
+									binary_code[current_location+2] = (unsigned char)(((unsigned int)(dist) / 256) % 256);
+								}
+
+								current_location += 3;
+
+								break;
+							}
+							else if (mods == 0x00 &&
+								strcmp(instruction_list[i+1], "r") == 0)
+							{
+								comment = true;
+
+								binary_code[current_location] = (unsigned char)(i / 4);
+
+								if (value < current_location + 2)
+								{
+									dist = value - ((current_location + 2) & 0x0000FFFF);
+								}
+								else
+								{
+									dist = value - ((current_location + 2) & 0x0000FFFF);
+								}
+
+								if (dist < -128 || dist > 127)
+								{
+									binary_code[current_location+1] = 0x00;
+
+									if (pass >= number_of_passes-1) printf("Line %lu: Relative branch too far, dist %ld, %lx and %lx\n", 
+										current_line, dist, value, current_location+2);
+								}
+								else
+								{
+									binary_code[current_location+1] = (unsigned char)(dist);
+								}
+
+								current_location += 2;
+
+								break;
+							}
 						}
 					}
 				}
