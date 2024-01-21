@@ -22,11 +22,10 @@ Splash showing 64-colors and text display together.
 </kbd>
 
 
-Bootloader monitor, a fallback when SDcard is not present.
+Bootloader fallback monitor, when SDcard is not present.
 <kbd>
-<img src="Simulator-Bootloader.png">
+<img src="Picture-Fallback.jpg">
 </kbd>
-
 
 Basic system monitor for read/write/execute.
 <kbd>
