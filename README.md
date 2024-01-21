@@ -8,16 +8,17 @@ This is a ROM-less design, having 512 bytes of bootloader code in the PIC16F886 
 
 The Simulator is powered by gianlucag's 6502 emulator library, with Agumander's W65C02 edits.  The LICENSE.txt pertains to the "mos6502-Edit816.h" and "mos6502-Edit816.cpp" files only.
 
+BODGES REQUIRED:  The 74AHCT245 connected to the PIC needs two changes: 1) Pin 1 is no longer R/W but instead connected to +5V. 2) Pin 19 is connected to RC5.  Also, the FTDI USB 6-pin connector has RTS and DTS lines cut and no longer connected to RC4 and RC5.
 
-A picture of what the board will look like after getting it printed and soldered.
+A picture of the board after bodges.
 <kbd>
-<img src="Acolyte816-Routed.png">
+<img src="Picture-Board.jpg">
 </kbd>
 
 
 Splash showing 64-colors and text display together.
 <kbd>
-<img src="Simulator-Splash.png">
+<img src="Picture-Splash.jpg">
 </kbd>
 
 
@@ -27,14 +28,18 @@ Bootloader monitor, a fallback when SDcard is not present.
 </kbd>
 
 
-Scratchpad to test the keyboard functionality.
+Basic system monitor for read/write/execute.
 <kbd>
-<img src="Simulator-Scratch.png">
+<img src="Picture-Monitor.jpg">
 </kbd>
 
+Text editor with vertical scrolling, will be used as IDE for a higher level language soon.
+<kbd>
+<img src="Picture-Editor.jpg">
+</kbd>
 
 First game for the system: Tetra!
 <kbd>
-<img src="Simulator-Tetra.png">
+<img src="Picture-Tetra.jpg">
 </kbd>
 
