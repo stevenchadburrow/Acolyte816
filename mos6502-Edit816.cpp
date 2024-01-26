@@ -914,6 +914,11 @@ mos6502::mos6502(BusRead r, BusWrite w, CPUEvent stp, BusRead sync)
 	instr.cycles = 5;
 	InstrTable[0xFF] = instr;
 
+	instr.addr = &mos6502::Addr_IMP;
+	instr.code = &mos6502::Op_PLB;
+	instr.cycles = 3;
+	InstrTable[0xAB] = instr;
+
 
 	Reset();
 
@@ -2014,6 +2019,11 @@ void mos6502::Op_XCE(uint32_t src)
 }
 
 void mos6502::Op_JML(uint32_t src)
+{
+	// do stuff here
+}
+
+void mos6502::Op_PLB(uint32_t src)
 {
 	// do stuff here
 }

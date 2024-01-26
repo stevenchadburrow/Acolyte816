@@ -178,6 +178,7 @@ private:
 	void Op_JML(uint32_t src);
 	void Op_XBA(uint32_t src);	
 	void Op_XCE(uint32_t src);
+	void Op_PLB(uint32_t src);
 	
 
 	void Op_ILLEGAL(uint32_t src);
